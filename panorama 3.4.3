@@ -67,7 +67,7 @@ int main()
 
 	Extractor->compute(matGrayLImage, vtKeypointsObject, matDescriptorsObject);
 	Extractor->compute(matGrayRImage, vtKeypointsScene, matDescriptorsScene);
-	//descriptor를 사이의 매칭 결과를 matches에 저장한다.
+	//descriptor(기술자)들 사이의 매칭 결과를 matches에 저장한다.
 	FlannBasedMatcher Matcher; //kd트리를 사용하여 매칭을 빠르게 수행
 	vector <DMatch> matches;
 	Matcher.match(matDescriptorsObject, matDescriptorsScene, matches);
