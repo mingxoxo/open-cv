@@ -104,7 +104,7 @@ int main()
 	drawMatches(matGrayLImage, vtKeypointsObject, matGrayRImage, vtKeypointsScene, good_matches, matGoodMatches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 	imshow("good-matches", matGoodMatches);
 	waitKey(3000);
-
+	//Point2f형으로 변환
 	vector <Point2f> obj;
 	vector <Point2f> scene;
 
@@ -113,7 +113,7 @@ int main()
 		scene.push_back(vtKeypointsScene[good_matches[i].trainIdx].pt);
 	}
 	Mat HomoMatrix = findHomography(scene, obj, CV_RANSAC);
-
+	//RANSAC기법을 이용하여 첫 번째 매개변수와 두번째 매개변수 사이의 3*3 크기의 투영행렬변환 H를 구한다
 	cout << HomoMatrix << endl;
 
 	//Homograpy matrix를 사용하여 이미지를 삐뚤게
