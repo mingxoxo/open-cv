@@ -80,8 +80,11 @@ int main()
 
 	std::vector<Point2f> scene_corner(4);
 	perspectiveTransform(model_corner, scene_corner, H);
+	 //좌표에 투영변환 H를 적용하여 장면 영상에 나타날 좌표 scene_corner를 계산한다
 
-	Point2f p(img1.cols, 0);
+	Point2f p(img1.cols, 0); //4개의 선분영상 그려넣음으로써 인식 결과 표시
+  	//하나의 윈도우에 모델 영상과 장면 영상을 같이 그려넣었기때문에 모델 영상의 너비만큼 이동시켜 그리기 위해 
+	//Point2f 형의 p를 더해주었다.
 	line(img_match, scene_corner[0] + p, scene_corner[1] + p, RED, 3);
 	line(img_match, scene_corner[1] + p, scene_corner[2] + p, RED, 3);
 	line(img_match, scene_corner[2] + p, scene_corner[3] + p, RED, 3);
