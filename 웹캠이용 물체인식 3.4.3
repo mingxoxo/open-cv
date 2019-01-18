@@ -23,9 +23,9 @@ int main()
 	Mat matGrayImage;
 	assert(img1.data);
 	cvtColor(img1, matGrayImage, CV_RGB2GRAY);
-	Ptr<SiftFeatureDetector> detector = SIFT::create(300); //SIFT를 검출
+	Ptr<SiftFeatureDetector> detector = SIFT::create(800); //SIFT를 검출
 	//Sift 클래스 안에 create 함수
-	//create안의 숫자는 thresold를 의미
+	//create안의 숫자는 스케일을 의미
 	std::vector<KeyPoint> keypoint1, vtKeypointVideo; //vector은 데이터 집합을 저장하는데 사용
 	detector->detect(matGrayImage, keypoint1);//멤버 함수 detect()는 첫 번째 매개변수에 있는 영상에서 키포인트를 검출하여 
 	//두번째 매개변수인 vector형 변수에 저장해준다.
@@ -57,6 +57,7 @@ int main()
 
 		detector->detect(video_frame, vtKeypointVideo);
 		drawKeypoints(video_frame, vtKeypointVideo, disp, RED, DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+		// DrawMatchesFlags::DRAW_RICH_KEYPOINTS : 각 키포인트에 대해 키포인트 크기 및 방향이있는 원 중심의 키포인트가 그려집니다.
 		//namedWindow("키포인트"); imshow("키포인트", disp);
 		//waitKey(1);
 
