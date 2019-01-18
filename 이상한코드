@@ -17,43 +17,6 @@ using namespace std;
 using namespace cv::xfeatures2d;
 
 #define DEBUG 1
-Mat deleteBlackZone(const Mat &image)
-{
-	Mat resultGray;
-	Mat result;
-	image.copyTo(result);
-
-	cvtColor(image, resultGray, CV_RGB2GRAY);
-
-	medianBlur(resultGray, resultGray, 3);
-	// 첫번째 매개변수 : 원본 이미지, 두번째 : 필터를 거친 이미지 세번째 : 작은영역의 사이즈
-	Mat resultTh;
-	vector<vector<Point> > contours;
-	vector<Vec4i> hierarchy;
-
-	threshold(resultGray, resultTh, 1, 255, 0);
-	findContours(resultTh, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-	//영상 내에서 연결 컴포넌트의 외곽선을 추출하는 함수
-	//CV_RETR_EXTERNAL : 외부 외곽선 검색
-	//CV_CHAIN_APPROX_SIMPLE : 마지막 점이 수평 또는 수직, 대각선 외곽선에 포함됨
-
-	Mat besta = Mat(contours[0]);
-	/*int min_areaa = contourArea(contours[0]);
-	int buenoa = 0;
-	for (int i = 0; i < contours.size(); i++) {
-		if (contourArea(contours[i]) < min_areaa)
-		{
-			min_areaa = contourArea(contours[i]);
-			besta = Mat(contours[i]);
-			buenoa = i;
-			cout << i << endl;
-		}
-	}*/
-	Rect a = boundingRect(besta);
-	cv::Mat half(result, a);
-	return half; 
-	
-}
 
 Mat panorama(Mat matLeftImage, Mat  matRightImage) {
 	Mat matGrayLImage;
@@ -144,24 +107,35 @@ Mat panorama(Mat matLeftImage, Mat  matRightImage) {
 	//Homograpy matrix를 사용하여 이미지를 삐뚤게
 	Mat matResult;
 
-	warpPerspective(matRightImage, matResult, HomoMatrix, Size(matRightImage.cols * 2, matRightImage.rows * 1.5), INTER_CUBIC);
+	warpPerspective(matRightImage, matResult, HomoMatrix, Size(matRightImage.cols * 2, matRightImage.rows), INTER_CUBIC);
 
 	Mat matPanorama;
 	matPanorama = matResult.clone();
 	//matResult = imagecut(matGrayLImage, matResult,  HomoMatrix);
 	imshow("wrap", matResult);
 	waitKey(3000);
-	//warpPerspective(image2, result, T*H, cv::Size(image1.cols + image2.cols * 2, image1.rows + image2.rows * 2));
-	//cv::Mat half(result, cv::Rect(image2.cols, image2.rows, image1.cols, image1.rows));
-	//image1.copyTo(half);
-	
+
 	Mat matROI(matPanorama, Rect(0, 0, matLeftImage.cols, matLeftImage.rows));
 	matLeftImage.copyTo(matROI);
-	matPanorama = deleteBlackZone(matPanorama);
-	imshow("Panorama", matPanorama);
-	waitKey(3000);
-	return matPanorama;
+	
+	//imshow("Panorama", matPanorama);
+	//waitKey(3000);
+	return matResult;
 }
+
+/*Mat imagecut(Mat img1, Mat img2, Mat HomoMatrix) {
+
+std::vector<Point2f> model_corner(4);
+model_corner[0] = cvPoint(0, 0);
+model_corner[1] = cvPoint(img1.cols, 0);
+model_corner[2] = cvPoint(img1.cols, img1.rows);
+model_corner[3] = cvPoint(0, img1.rows);
+
+std::vector<Point2f> scene_corner(4);
+perspectiveTransform(model_corner, scene_corner, HomoMatrix);
+Mat img3 = img2(Range(scene_corner[0].y, scene_corner[1].y), Range(scene_corner[2].x, scene_corner.size[1].x));
+return img3;
+}*/
 
 int main()
 {
@@ -177,7 +151,61 @@ int main()
 	if (img1.empty() || img2.empty() || img3.empty()) return -1;
 
 	panoram = panorama(img1, img2);
-	panoram = panorama(panoram, img3);
+	Mat img_gray;
+	cvtColor(panoram, img_gray, COLOR_BGR2GRAY);
+	threshold(img_gray, img_gray, 25, 255, THRESH_BINARY); //Threshold the gray
+	vector<vector<Point> > contours; // Vector for storing contour
+	vector<Vec4i> hierarchy;
+	findContours(img_gray, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE); // Find the contours in the image
+	int largest_area = 0;
+	int largest_contour_index = 0;
+	Rect bounding_rect;
+
+	for (int i = 0; i< contours.size(); i++) // iterate through each contour. 
+	{
+		double a = contourArea(contours[i], false);  //  Find the area of contour
+		if (a>largest_area) {
+			largest_area = a;
+			largest_contour_index = i;                //Store the index of largest contour
+			bounding_rect = boundingRect(contours[i]); // Find the bounding rectangle for biggest contour
+		}
+
+	}
+
+	// Scalar color( 255,255,255);
+	panoram = panoram(Rect(bounding_rect.x, bounding_rect.y, bounding_rect.width, bounding_rect.height));
+	imshow("Panorama", panoram);
+	waitKey(3000);
+
+	Mat img_gray2;
+	Mat panoram2;
+	panoram2 = panorama(img2, img3);
+	cvtColor(panoram2, img_gray2, COLOR_BGR2GRAY);
+
+	//Finding the largest contour i.e remove the black region from image
+	threshold(img_gray2, img_gray2, 25, 255, THRESH_BINARY); //Threshold the gray
+	vector<vector<Point> > contours2; // Vector for storing contour
+	vector<Vec4i> hierarchy2;
+	findContours(img_gray2, contours2, hierarchy2, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE); // Find the contours in the image
+	int largest_area2 = 0;
+	int largest_contour_index2 = 0;
+	Rect bounding_rect2;
+
+	for (int i = 0; i< contours2.size(); i++) // iterate through each contour. 
+	{
+		double a = contourArea(contours2[i], false);  //  Find the area of contour
+		if (a>largest_area2) {
+			largest_area2 = a;
+			largest_contour_index2 = i;                //Store the index of largest contour
+			bounding_rect2 = boundingRect(contours2[i]); // Find the bounding rectangle for biggest contour
+		}
+
+	}
+	Mat pa;
+	panoram2 = panoram2(Rect(bounding_rect2.x, bounding_rect2.y, bounding_rect2.width, bounding_rect2.height));
+	imshow("Panorama2", panoram2);
+	waitKey(3000);
+	pa = panorama(panoram, panoram2);
 	imshow("최종 파노라마", panoram);
 	waitKey();
 	return 0;
