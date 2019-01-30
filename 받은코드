@@ -30,10 +30,9 @@ const string bowImageDescriptorsDir = "/bowImageDescriptors";
 const string svmsDir = "/svms";
 const string plotsDir = "/plots";
 static void makeDir(const string& dir)
+//make directory
 {
-
    mkdir(dir.c_str());
-
 }
 
 static void makeUsedDirs(const string& rootPath)
@@ -52,6 +51,7 @@ static void makeUsedDirs(const string& rootPath)
 
 //used to specify the (sub-)dataset over which operations are performed
 enum ObdDatasetType { CV_OBD_TRAIN, CV_OBD_TEST };
+//열거형 - 순서대로 CV_OBD_TRAIN = 0, CV_OBD_TEST = 1
 
 class ObdObject
 {
@@ -60,11 +60,12 @@ public:
    Rect boundingBox;
 };
 
-//extended object data specific to VOC
+//VOC와 관련된 확장된 object data
 enum VocPose { CV_VOC_POSE_UNSPECIFIED, CV_VOC_POSE_FRONTAL, CV_VOC_POSE_REAR, CV_VOC_POSE_LEFT, CV_VOC_POSE_RIGHT };
 class VocObjectData
 {
 public:
+//bool은 true와 false 두가지만 저장할 수 있는 1비트 자료형
    bool difficult;
    bool occluded;
    bool truncated;
@@ -84,7 +85,7 @@ public:
    string path;
 };
 
-//used by getDetectorGroundTruth to sort a two dimensional list of floats in descending order
+//getectorGroundTruth에서 2차원 float 목록을 내림차순으로 정렬하는 데 사용
 class ObdScoreIndexSorter
 {
 public:
@@ -102,11 +103,11 @@ public:
       initVoc(vocPath, useTestDataset);
    }
    ~VocData() {}
-   /* functions for returning classification/object data for multiple images given an object class */
+   /* 객체 클래스가 지정된 여러 이미지에 대한 분류/객체 데이터를 반환하는 기능 */
    void getClassImages(const string& obj_class, const ObdDatasetType dataset, vector<ObdImage>& images, vector<char>& object_present);
    void getClassObjects(const string& obj_class, const ObdDatasetType dataset, vector<ObdImage>& images, vector<vector<ObdObject> >& objects);
    void getClassObjects(const string& obj_class, const ObdDatasetType dataset, vector<ObdImage>& images, vector<vector<ObdObject> >& objects, vector<vector<VocObjectData> >& object_data, vector<VocGT>& ground_truth);
-   /* functions for returning object data for a single image given an image id */
+  	/* 이미지 ID가 지정된 단일 이미지에 대해 개체 데이터를 반환하는 기능 */
    ObdImage getObjects(const string& id, vector<ObdObject>& objects);
    ObdImage getObjects(const string& id, vector<ObdObject>& objects, vector<VocObjectData>& object_data);
    ObdImage getObjects(const string& obj_class, const string& id, vector<ObdObject>& objects, vector<VocObjectData>& object_data, VocGT& ground_truth);
