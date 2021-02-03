@@ -25,8 +25,8 @@ int main()
 	Mat matGrayLImage;
 	Mat matGrayRImage;
 
-	matLeftImage = imread("C:/opencv-2-4-13-6/S5.jpg", IMREAD_COLOR);
-	matRightImage = imread("C:/opencv-2-4-13-6/S6.jpg", IMREAD_COLOR);
+	matLeftImage = imread("C:/opencv-3.4.3/image222.jpg", IMREAD_COLOR);
+	matRightImage = imread("C:/opencv-3.4.3/image111.jpg", IMREAD_COLOR);
 
 	if (matLeftImage.empty() || matRightImage.empty()) return -1;
 
@@ -38,12 +38,10 @@ int main()
 	cvtColor(matLeftImage, matGrayLImage, CV_RGB2GRAY);
 	cvtColor(matRightImage, matGrayRImage, CV_RGB2GRAY);
 
-	//matGrayLImage = imread("C:/opencv-2-4-13-6/S5.jpg", CV_GRAY2BGR);
-	//matGrayRImage = imread("C:/opencv-2-4-13-6/S6.jpg", CV_GRAY2BGR);
 	if (!matGrayLImage.data || !matGrayRImage.data) return -1;
 
 	//step 1 SURF이용해서 특징점 결정
-	int nMinHessian = 400; // threshold (한계점)???????
+	int nMinHessian = 300; // threshold (한계점)
 	Ptr<SurfFeatureDetector> Detector = SURF::create(nMinHessian);
 
 	vector <KeyPoint> vtKeypointsObject, vtKeypointsScene;
@@ -62,6 +60,7 @@ int main()
 
 	//step 2 기술자
 	Ptr<SurfDescriptorExtractor> Extractor = SURF::create();
+	//Ptr<SurfDescriptorExtractor> Extractor = SURF::create(100, 4, 3, false,true);
 
 	Mat matDescriptorsObject, matDescriptorsScene;
 
@@ -72,42 +71,49 @@ int main()
 	vector <DMatch> matches;
 	Matcher.match(matDescriptorsObject, matDescriptorsScene, matches);
 
-	Mat matGoodMatches1;
-	drawMatches(matGrayLImage, vtKeypointsObject, matGrayRImage, vtKeypointsScene, matches, matGoodMatches1, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-	imshow("allmatches", matGoodMatches1);
+	Mat matAllMatches;
+	drawMatches(matGrayLImage, vtKeypointsObject, matGrayRImage, vtKeypointsScene, matches, matAllMatches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+	imshow("allmatches", matAllMatches);
 	waitKey(1);
-	double dMaxDist = 0;
-	double dMinDist = 100;
+	double dMaxDist = matches[0].distance;
+	double dMinDist = matches[0].distance;
 	double dDistance;
 
-	// 두 개의 keypoint 사이에서 min-max를 계산한다
+	// 두 개의 keypoint 사이에서 min-max를 계산한다 (min값만 사용)
 	for (int i = 0; i < matDescriptorsObject.rows; i++) {
 		dDistance = matches[i].distance;
 
 		if (dDistance < dMinDist) dMinDist = dDistance;
-		if (dDistance < dMaxDist) dMaxDist = dDistance;
+		if (dDistance > dMaxDist) dMaxDist = dDistance;
 	}
 	printf("max_dist : %f \n", dMaxDist);
-	printf("max_dist : %f \n", dMinDist);
-	// 값이 작을수록 matching이 잘 된 것
-	//min의 값의 3배까지만 goodmatch로 인정해주겠다
-
+	printf("min_dist : %f \n", dMinDist);
+	
+	//match의 distance 값이 작을수록 matching이 잘 된 것
+	//min의 값의 3배 또는 good_matches.size() > 50 까지만 goodmatch로 인정해준다.
 	vector<DMatch>good_matches;
-
-	for (int i = 0; i < matDescriptorsObject.rows; i++) {
-		if (matches[i].distance < 3.5 * dMinDist)
-			good_matches.push_back(matches[i]);
-	}
+	int distance = 10;
+	do{
+		vector<DMatch>good_matches2;
+		for (int i = 0; i < matDescriptorsObject.rows; i++) {
+			if (matches[i].distance < distance * dMinDist)
+				good_matches2.push_back(matches[i]);
+		}
+		good_matches = good_matches2;
+		distance -= 1;
+	} while (distance != 2 && good_matches.size() > 50);
 
 	//keypoint들과 matching 결과 ("good" matched point)를 선으로 연결하여 이미지에 그려 표시
 	Mat matGoodMatches;
 	drawMatches(matGrayLImage, vtKeypointsObject, matGrayRImage, vtKeypointsScene, good_matches, matGoodMatches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 	imshow("good-matches", matGoodMatches);
 	waitKey(3000);
+
 	//Point2f형으로 변환
 	vector <Point2f> obj;
 	vector <Point2f> scene;
-
+	
+	// goodmatch에서의 keypoint를 저장
 	for (int i = 0; i < good_matches.size();i++) {
 		obj.push_back(vtKeypointsObject[good_matches[i].queryIdx].pt);
 		scene.push_back(vtKeypointsScene[good_matches[i].trainIdx].pt);
@@ -122,7 +128,7 @@ int main()
 	warpPerspective(matRightImage, matResult, HomoMatrix, Size(matRightImage.cols * 2, matRightImage.rows), INTER_CUBIC);
 
 	Mat matPanorama;
-	matPanorama = matResult.clone();
+	matPanorama = matResult.clone(); //복사본 대입
 
 	imshow("wrap", matResult);
 	waitKey(3000);
