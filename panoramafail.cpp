@@ -18,11 +18,22 @@ using namespace cv::xfeatures2d;
 
 #define DEBUG 1
 
-Mat makePanorama(Mat matLeftImage, Mat matRightImage, int direction) {
+Mat tanseImage(Mat originalImage) {
+	Mat transresult(originalImage.rows + 100, originalImage.cols, CV_8UC3, Scalar(0));
 
-	//imshow("L", matLeftImage);
-	//imshow("R", matRightImage);
-	//waitKey(1);
+	for (int y = 100; y < originalImage.rows + 100; y++) {
+		for (int x = 0; x < originalImage.cols; x++) {
+			transresult.at<Vec3b>(y, x) = originalImage.at<Vec3b>(y - 100, x);
+		}
+	}
+	return transresult;
+}
+
+Mat makePanorama(Mat matLeftImage, Mat matRightImage) {
+
+	imshow("L", matLeftImage);
+	imshow("R", matRightImage);
+	waitKey(1);
 
 	Mat matGrayLImage;
 	Mat matGrayRImage;
@@ -31,7 +42,13 @@ Mat makePanorama(Mat matLeftImage, Mat matRightImage, int direction) {
 	cvtColor(matLeftImage, matGrayLImage, CV_RGB2GRAY);
 	cvtColor(matRightImage, matGrayRImage, CV_RGB2GRAY);
 
-	//step 1 SURF이용해서 특징점 결정
+	for (int y = 0; y < matLeftImage.rows; y++) {
+		for (int x = 0; x < matLeftImage.cols-matRightImage.cols; x++) {
+			matGrayLImage.at<uchar>(y, x) = 0;
+		}
+	}
+
+	//step 1 SURF이용해서 특징점 추출
 	int nMinHessian = 300; // threshold (한계점)
 	Ptr<SurfFeatureDetector> Detector = SURF::create(nMinHessian);
 
@@ -105,43 +122,18 @@ Mat makePanorama(Mat matLeftImage, Mat matRightImage, int direction) {
 	vector <Point2f> scene;
 
 	// goodmatch에서의 keypoint를 저장
-
-	Mat warpImage, stayImage;
-	if (direction == 1) {
-		for (int i = 0; i < good_matches.size();i++) {
-			obj.push_back(vtKeypointsObject[good_matches[i].queryIdx].pt);
-			scene.push_back(vtKeypointsScene[good_matches[i].trainIdx].pt);
-		}
-		warpImage = matRightImage.clone();
-		stayImage = matLeftImage.clone();
+	for (int i = 0; i < good_matches.size();i++) {
+		obj.push_back(vtKeypointsObject[good_matches[i].queryIdx].pt);
+		scene.push_back(vtKeypointsScene[good_matches[i].trainIdx].pt);
 	}
-	else {
-		for (int i = 0; i < good_matches.size();i++) {
-			scene.push_back(vtKeypointsObject[good_matches[i].queryIdx].pt);
-			obj.push_back(vtKeypointsScene[good_matches[i].trainIdx].pt);
-		}
-		warpImage = matLeftImage.clone();
-		stayImage = matRightImage.clone();
-	}
-	printf("%d %d", stayImage.rows, stayImage.cols);
-	/*
-	Mat transImage(stayImage.rows, stayImage.cols+100, CV_8UC3, Scalar(0));
-	for (int i = 100; i < stayImage.cols+100; i++) {
-		for (int j = 0; j < stayImage.rows; j++) {
-			Vec3b v = stayImage.at<Vec3b>(j, i-100);
-			transImage.at<Vec3b>(j, i) = v;
-		}
-	}
-	
-	imshow("trans", transImage);*/
 	Mat HomoMatrix = findHomography(scene, obj, CV_RANSAC);
 	//RANSAC기법을 이용하여 첫 번째 매개변수와 두번째 매개변수 사이의 3*3 크기의 투영행렬변환 H를 구한다
 	cout << HomoMatrix << endl;
 
+
 	//Homograpy matrix를 사용하여 이미지를 삐뚤게
 	Mat matResult;
-	warpPerspective(warpImage, matResult, HomoMatrix, Size(warpImage.cols * 2, warpImage.rows * 2), INTER_CUBIC);
-	
+	warpPerspective(matRightImage, matResult, HomoMatrix, Size(matLeftImage.cols*2, matLeftImage.rows*1.2), INTER_CUBIC);
 
 	Mat matPanorama;
 	matPanorama = matResult.clone(); //복사본 대입
@@ -149,30 +141,64 @@ Mat makePanorama(Mat matLeftImage, Mat matRightImage, int direction) {
 	imshow("wrap", matResult);
 	waitKey(3000);
 
-	Mat matROI(matPanorama, Rect(0, 0, stayImage.cols, stayImage.rows));
-	stayImage.copyTo(matROI);
-
-
-	imshow("Panorama", matPanorama);
+	Mat matROI(matPanorama, Rect(0, 0, matLeftImage.cols, matLeftImage.rows));
+	matLeftImage.copyTo(matROI);
 	
-	return matPanorama;
+	imshow("Panorama", matPanorama);
+	//검은 여백 잘라내기
+	
+	int colorx = 0, colory = 0;
+	for (int y = 0; y < matPanorama.rows; y++) {
+		for (int x = 0; x < matPanorama.cols; x++) {
+			if (matPanorama.at<Vec3b>(y, x)[0] == 0 && matPanorama.at<Vec3b>(y, x)[1] == 0 && matPanorama.at<Vec3b>(y, x)[2] == 0) {
+				continue;
+			}
+			if (colorx < x) {
+				colorx = x;
+			}
+			if (colory < y){
+				colory = y;
+			}
+		}
+	}
+	
+	Mat blackCutPanorama;
+	blackCutPanorama = matPanorama(Range(0, colory), Range(0, colorx));
+	imshow("cutblack", blackCutPanorama);
+	return blackCutPanorama;
 }
 
 int main()
 {
-	Mat matImage[3];
-	Mat re;
+	Mat matImage1;
+	Mat matImage2;
+	Mat matImage3;
 
-	matImage[0] = imread("C:/opencv-3.4.3/imaget2.jpg", IMREAD_COLOR);
-	matImage[1] = imread("C:/opencv-3.4.3/imaget3.jpg", IMREAD_COLOR);
-	matImage[2] = imread("C:/opencv-3.4.3/imaget1.jpg", IMREAD_COLOR);
+	Mat result1;
+	Mat result2;
+	Mat result3;
 
-	if (matImage[0].empty() || matImage[1].empty()) return -1;
+	Mat result;
 
-	re = makePanorama(matImage[0], matImage[1], 1);
-	makePanorama(matImage[2], re, 2);
+    //가운데 image가 중심이므로 가운데 image를 기준으로 좌/우에 image stitching
+	matImage1 = imread("C:/opencv-3.4.3/imagetest2.jpg", IMREAD_COLOR);
+	matImage2 = imread("C:/opencv-3.4.3/imagetest1.jpg", IMREAD_COLOR);
+	matImage3 = imread("C:/opencv-3.4.3/imagetest3.jpg", IMREAD_COLOR);
 
+	if (matImage1.empty() || matImage2.empty() || matImage3.empty()) return -1;
+
+    //wrap 시킬 때 윗부분 잘리지 않게 하기 위해서 y축 밑으로 100pixel 평행이동
+	matImage1 = tanseImage(matImage1).clone();
+	matImage2 = tanseImage(matImage2).clone();
+	matImage3 = tanseImage(matImage3).clone();
+
+	flip(matImage1, result2, 1);
+	flip(matImage2, result3, 1);
+	result1 = makePanorama(result2, result3);
+	flip(result1, result, 1);
+	result1 = makePanorama(result, matImage3);
+
+	imshow("Result", result1);
 	waitKey();
-
 	return 0;
 }
